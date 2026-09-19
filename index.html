@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tô com o time da Vitória - Molduras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            yellow: '#FFCC00',
+                            dark: '#161200',
+                            red1: '#FA0801',
+                            red2: '#940501'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .editor-container {
+            position: relative;
+            background-color: #f3f4f6;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #ccc;
+            transition: border-color 0.3s;
+        }
+        .editor-container.has-image {
+            border: none;
+            background-color: transparent;
+        }
+        
+        .user-photo {
+            position: absolute;
+            cursor: grab;
+            transform-origin: center center;
+            touch-action: none;
+            max-width: none;
+        }
+        .user-photo:active {
+            cursor: grabbing;
+        }
+
+        .frame-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            object-fit: cover;
+        }
+
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .btn-chapa.active {
+            box-shadow: 0 0 0 4px white, 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .error-message {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .flex-col-mobile { flex-direction: column; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex items-center justify-center p-0 md:p-4">
+
+    <div class="flex flex-col md:flex-row w-full max-w-6xl bg-white shadow-2xl overflow-hidden min-h-screen md:min-h-[850px] relative">
+        
+        <!-- LATERAL ESQUERDA (Gradiente Vermelho) -->
+        <div class="w-full md:w-5/12 text-white p-8 flex flex-col items-center py-12 md:py-16 z-10 shrink-0" style="background: linear-gradient(154deg, #FA0801 42.88%, #940501 100.39%);">
+            
+            <div class="flex-grow flex flex-col justify-start items-center w-full max-w-sm">
+                <!-- Logo -->
+                <div class="mb-10 text-center relative w-full flex flex-col items-center">
+                    <div class="w-full max-w-[300px] h-auto drop-shadow-md bg-white/20 rounded-lg p-4 flex items-center justify-center min-h-[100px]" id="logo-container">
+                        <span class="text-white font-black text-3xl text-center">Tô com o time da Vitória</span>
+                    </div>
+                </div>
+
+                <!-- Textos e Instruções -->
+                <h2 class="text-2xl md:text-3xl font-black mb-4 text-center leading-tight drop-shadow-md">
+                    Sua foto com o<br>Time da Vitória
+                </h2>
+                
+                <p class="text-white text-sm md:text-base mb-10 font-medium opacity-95 text-center px-2">
+                    Escolha uma foto, ajuste dentro do círculo e baixe pronta para postar.
+                </p>
+
+                <!-- Seleção de Moldura -->
+                <div class="w-full flex flex-col items-center mt-auto md:mt-10">
+                    <h3 class="text-lg md:text-xl font-extrabold mb-6 uppercase tracking-wider">Escolha sua moldura</h3>
+                    
+                    <div class="flex flex-col gap-5 w-full px-4">
+                        <!-- Botão Andréia -->
+                        <button id="btn-andreia" class="btn-chapa active bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-4 px-6 rounded-full transition-all duration-300 disabled:opacity-50" onclick="selecionarTime('andreia')" disabled>
+                            Time Andréia de Jesus
+                        </button>
+                        
+                        <!-- Botão Marquinho -->
+                        <button id="btn-marquinho" class="btn-chapa bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-4 px-6 rounded-full transition-all duration-300 disabled:opacity-50" onclick="selecionarTime('marquinho')" disabled>
+                            Time Marquinho Lemes
+                        </button>
+                    </div>
+
+                    <div class="mt-6 text-sm text-white/80 text-center" id="status-molduras">
+                        <p>Carregando molduras...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LADO DIREITO (Editores) -->
+        <div class="w-full md:w-7/12 bg-white p-6 md:p-12 overflow-y-auto flex flex-col items-center gap-16 hide-scroll z-0">
+            
+            <!-- EDITOR 1: Foto de Perfil -->
+            <div class="flex flex-col items-center w-full mt-4 md:mt-6">
+                <h3 class="text-xl md:text-2xl font-black text-brand-dark mb-6">Foto de Perfil</h3>
+                
+                <div class="relative w-64 h-64 md:w-72 md:h-72 mb-4 rounded-full editor-container shadow-inner" id="container-perfil">
+                    <div id="placeholder-perfil" class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-brand-red1 transition-colors" onclick="document.getElementById('input-perfil').click()">
+                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span class="text-sm font-bold text-center px-4">clique para enviar a foto</span>
+                    </div>
+                    
+                    <img id="user-img-perfil" class="user-photo hidden" alt="Sua Foto" draggable="false">
+                    <img id="frame-perfil" class="frame-overlay hidden" alt="Moldura Perfil">
+                    
+                    <input type="file" id="input-perfil" class="hidden" accept="image/png, image/jpeg">
+                </div>
+
+                <div id="zoom-control-perfil" class="w-64 mb-6 hidden flex flex-col items-center">
+                    <label class="text-xs font-bold text-gray-500 mb-2 uppercase">Ajustar Zoom</label>
+                    <input type="range" id="slider-perfil" min="0.1" max="3" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-red1">
+                </div>
+                
+                <button onclick="baixarImagem('perfil')" class="bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-3 px-10 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] transition-transform transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" id="btn-download-perfil" disabled>
+                    Baixar sua foto
+                </button>
+            </div>
+
+            <!-- Divisor -->
+            <div class="w-full max-w-sm h-px bg-gray-200"></div>
+
+            <!-- EDITOR 2: Post para o Feed -->
+            <div class="flex flex-col items-center w-full mb-10">
+                <h3 class="text-xl md:text-2xl font-black text-brand-dark mb-6">Post para o feed</h3>
+                
+                <div class="relative w-64 h-[320px] md:w-[280px] md:h-[350px] mb-4 rounded-md editor-container shadow-inner" id="container-feed">
+                    <div id="placeholder-feed" class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-brand-red1 transition-colors" onclick="document.getElementById('input-feed').click()">
+                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span class="text-sm font-bold text-center px-4">clique para enviar a foto</span>
+                    </div>
+                    
+                    <img id="user-img-feed" class="user-photo hidden" alt="Sua Foto" draggable="false">
+                    <img id="frame-feed" class="frame-overlay hidden" alt="Moldura Feed">
+                    
+                    <input type="file" id="input-feed" class="hidden" accept="image/png, image/jpeg">
+                </div>
+
+                <div id="zoom-control-feed" class="w-64 mb-6 hidden flex flex-col items-center">
+                    <label class="text-xs font-bold text-gray-500 mb-2 uppercase">Ajustar Zoom</label>
+                    <input type="range" id="slider-feed" min="0.1" max="3" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-red1">
+                </div>
+                
+                <button onclick="baixarImagem('feed')" class="bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-3 px-10 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] transition-transform transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" id="btn-download-feed" disabled>
+                    Baixar sua foto
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ========== CONFIGURAÇÃO DAS MOLDURAS ==========
+        // Substitua os caminhos abaixo pelos URLs onde as molduras PNG estão hospedadas
+        const CONFIG = {
+    basePath: './',  // Deixe assim se tudo na mesma pasta
+    molduras: {
+        andreia: {
+            perfil: 'andreia-perfil.png',
+            feed: 'andreia-feed.png'
+        },
+        marquinho: {
+            perfil: 'marquinho-perfil.png',
+            feed: 'marquinho-feed.png'
+        }
+    },
+    logoUrl: './Union.png'  // Descomente se tiver logo
+    };
+
+        let chapaAtual = 'andreia';
+        let moldurasCarregadas = false;
+
+        // Função para carregar todas as molduras na inicialização
+        async function carregarMolduras() {
+            try {
+                const urls = [
+                    CONFIG.basePath + CONFIG.molduras.andreia.perfil,
+                    CONFIG.basePath + CONFIG.molduras.andreia.feed,
+                    CONFIG.basePath + CONFIG.molduras.marquinho.perfil,
+                    CONFIG.basePath + CONFIG.molduras.marquinho.feed
+                ];
+
+                // Valida todas as imagens em paralelo
+                const promessas = urls.map(url => 
+                    fetch(url, { method: 'HEAD' })
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Moldura não encontrada: ${url}`);
+                            return true;
+                        })
+                );
+
+                await Promise.all(promessas);
+                
+                moldurasCarregadas = true;
+                document.getElementById('status-molduras').innerHTML = '<p class="text-white/80">✓ Molduras carregadas!</p>';
+                
+                // Habilita os botões
+                document.getElementById('btn-andreia').disabled = false;
+                document.getElementById('btn-marquinho').disabled = false;
+                
+                // Aplica a moldura inicial
+                atualizarMolduras();
+            } catch (error) {
+                console.error('Erro ao carregar molduras:', error);
+                document.getElementById('status-molduras').innerHTML = `
+                    <p class="text-red-300">⚠ Erro ao carregar molduras</p>
+                    <p class="text-xs mt-2">Verifique se os arquivos PNG estão no mesmo diretório do HTML</p>
+                `;
+            }
+        }
+
+        // Função para trocar a chapa selecionada
+        function selecionarTime(time) {
+            if (!moldurasCarregadas) return;
+            
+            chapaAtual = time;
+            
+            // Atualiza botões
+            document.getElementById('btn-andreia').classList.remove('active');
+            document.getElementById('btn-marquinho').classList.remove('active');
+            document.getElementById(`btn-${time}`).classList.add('active');
+
+            // Atualiza as molduras
+            atualizarMolduras();
+        }
+
+        // Função auxiliar para atualizar as molduras
+        function atualizarMolduras() {
+            document.getElementById('frame-perfil').src = CONFIG.basePath + CONFIG.molduras[chapaAtual].perfil;
+            document.getElementById('frame-feed').src = CONFIG.basePath + CONFIG.molduras[chapaAtual].feed;
+        }
+
+        // Carrega logo se tiver URL
+        function carregarLogo() {
+            if (CONFIG.logoUrl) {
+                const img = new Image();
+                img.src = CONFIG.logoUrl;
+                img.className = 'w-full max-w-[300px] h-auto drop-shadow-md';
+                img.alt = 'Tô com o time da Vitória';
+                img.onload = () => {
+                    document.getElementById('logo-container').innerHTML = '';
+                    document.getElementById('logo-container').appendChild(img);
+                };
+            }
+        }
+
+        // ========== SISTEMA DE EDITOR DE IMAGEM ==========
+        const editors = {
+            perfil: { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 },
+            feed: { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 }
+        };
+
+        function setupEditor(type) {
+            const input = document.getElementById(`input-${type}`);
+            const userImg = document.getElementById(`user-img-${type}`);
+            const frameImg = document.getElementById(`frame-${type}`);
+            const placeholder = document.getElementById(`placeholder-${type}`);
+            const container = document.getElementById(`container-${type}`);
+            const zoomControl = document.getElementById(`zoom-control-${type}`);
+            const slider = document.getElementById(`slider-${type}`);
+            const downloadBtn = document.getElementById(`btn-download-${type}`);
+            const state = editors[type];
+
+            // Upload de Imagem
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    userImg.src = event.target.result;
+                    userImg.onload = () => {
+                        state.scale = 1;
+                        state.panX = 0;
+                        state.panY = 0;
+                        slider.value = 1;
+                        
+                        const imgRatio = userImg.naturalWidth / userImg.naturalHeight;
+                        const containerRatio = container.offsetWidth / container.offsetHeight;
+                        
+                        if(imgRatio > containerRatio) {
+                            userImg.style.height = '100%';
+                            userImg.style.width = 'auto';
+                        } else {
+                            userImg.style.width = '100%';
+                            userImg.style.height = 'auto';
+                        }
+
+                        updateTransform(type);
+                        
+                        userImg.classList.remove('hidden');
+                        frameImg.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                        container.classList.add('has-image');
+                        zoomControl.classList.remove('hidden');
+                        downloadBtn.disabled = false;
+                    };
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Controle de Zoom
+            slider.addEventListener('input', function(e) {
+                state.scale = parseFloat(e.target.value);
+                updateTransform(type);
+            });
+
+            // Sistema de Arrastar - Mouse
+            container.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', drag);
+            window.addEventListener('mouseup', endDrag);
+
+            // Sistema de Arrastar - Touch
+            container.addEventListener('touchstart', (e) => {
+                if(e.touches.length === 1) {
+                    startDrag(e.touches[0]);
+                }
+            }, {passive: false});
+            window.addEventListener('touchmove', (e) => {
+                if(state.isDragging && e.touches.length === 1) {
+                    e.preventDefault();
+                    drag(e.touches[0]);
+                }
+            }, {passive: false});
+            window.addEventListener('touchend', endDrag);
+
+            function startDrag(e) {
+                if (userImg.classList.contains('hidden')) return;
+                state.isDragging = true;
+                state.startX = e.clientX - state.panX;
+                state.startY = e.clientY - state.panY;
+            }
+
+            function drag(e) {
+                if (!state.isDragging) return;
+                state.panX = e.clientX - state.startX;
+                state.panY = e.clientY - state.startY;
+                updateTransform(type);
+            }
+
+            function endDrag() {
+                state.isDragging = false;
+            }
+        }
+
+        function updateTransform(type) {
+            const userImg = document.getElementById(`user-img-${type}`);
+            const state = editors[type];
+            userImg.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+        }
+
+        // ========== DOWNLOAD DE IMAGEM ==========
+        function baixarImagem(type) {
+            const userImg = document.getElementById(`user-img-${type}`);
+            
+            if (userImg.classList.contains('hidden') || !userImg.src) {
+                alert('Por favor, envie uma foto primeiro!');
+                return;
+            }
+
+            const state = editors[type];
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const frameUrl = CONFIG.basePath + CONFIG.molduras[chapaAtual][type];
+
+            canvas.width = 1080;
+            canvas.height = type === 'perfil' ? 1080 : 1350;
+
+            const frameImg = new Image();
+            frameImg.crossOrigin = "anonymous";
+            frameImg.src = frameUrl;
+
+            frameImg.onload = () => {
+                const container = document.getElementById(`container-${type}`);
+                
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const renderScale = canvas.width / container.offsetWidth;
+
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.translate(state.panX * renderScale, state.panY * renderScale);
+                ctx.scale(state.scale, state.scale);
+
+                let drawWidth, drawHeight;
+                const imgRatio = userImg.naturalWidth / userImg.naturalHeight;
+                const containerRatio = container.offsetWidth / container.offsetHeight;
+
+                if(imgRatio > containerRatio) {
+                    drawHeight = canvas.height;
+                    drawWidth = drawHeight * imgRatio;
+                } else {
+                    drawWidth = canvas.width;
+                    drawHeight = drawWidth / imgRatio;
+                }
+
+                ctx.drawImage(userImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                ctx.restore();
+
+                ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+
+                try {
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    const link = document.createElement('a');
+                    link.download = `foto-${chapaAtual}-${type}.jpg`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (e) {
+                    console.error("Erro ao gerar imagem:", e);
+                    alert("Erro ao baixar a imagem. Tente novamente.");
+                }
+            };
+
+            frameImg.onerror = () => {
+                console.error('Erro ao carregar moldura:', frameUrl);
+                alert('Erro ao carregar a moldura. Verifique se o arquivo existe.');
+            };
+        }
+
+        // ========== INICIALIZAÇÃO ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEditor('perfil');
+            setupEditor('feed');
+            carregarMolduras();
+            carregarLogo();
+        });
+    </script>
+</body>
+</html>
