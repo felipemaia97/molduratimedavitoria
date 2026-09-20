@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tô com o time da Vitória - Molduras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            yellow: '#FFCC00',
+                            dark: '#161200',
+                            red1: '#FA0801',
+                            red2: '#940501'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Área de preview onde a mágica acontece */
+        .editor-container {
+            position: relative;
+            background-color: #f3f4f6;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #ccc;
+            transition: border-color 0.3s;
+        }
+        .editor-container.has-image {
+            border: none;
+            background-color: transparent;
+        }
+        
+        /* A foto do usuário (que pode ser arrastada e redimensionada) */
+        .user-photo {
+            position: absolute;
+            cursor: grab;
+            transform-origin: center center;
+            touch-action: none; /* Previne scroll da tela ao arrastar no mobile */
+            max-width: none;
+        }
+        .user-photo:active {
+            cursor: grabbing;
+        }
+
+        /* A moldura (PNG com transparência) que fica por cima travada */
+        .frame-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Deixa o clique passar para a foto embaixo */
+            z-index: 10;
+            object-fit: cover;
+        }
+
+        /* Esconde scrollbars nativas para um visual mais limpo */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Botão de seleção de moldura ativo */
+        .btn-chapa.active {
+            box-shadow: 0 0 0 4px white, 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex items-center justify-center p-0 md:p-4">
+
+    <div class="flex flex-col md:flex-row w-full max-w-6xl bg-white shadow-2xl overflow-hidden min-h-screen md:min-h-[850px] relative">
+        
+        <!-- LATERAL ESQUERDA (Gradiente Vermelho) -->
+        <div class="w-full md:w-5/12 text-white p-8 flex flex-col items-center py-12 md:py-16 z-10 shrink-0" style="background: linear-gradient(154deg, #FA0801 42.88%, #940501 100.39%);">
+            
+            <div class="flex-grow flex flex-col justify-start items-center w-full max-w-sm">
+                <!-- Logo -->
+                <div class="mb-10 text-center relative w-full flex flex-col items-center">
+                    <img src="Union.png" alt="Tô com o time da Vitória" class="w-full max-w-[300px] h-auto drop-shadow-md">
+                </div>
+
+                <!-- Textos e Instruções do Slide 2 -->
+                <h2 class="text-2xl md:text-3xl font-black mb-4 text-center leading-tight drop-shadow-md">
+                    Sua foto com o<br>Time da Vitória
+                </h2>
+                
+                <p class="text-white text-sm md:text-base mb-10 font-medium opacity-95 text-center px-2">
+                    Escolha uma foto, ajuste dentro do circulo e baixe pronta para postar.
+                </p>
+
+                <!-- Seleção de Moldura -->
+                <div class="w-full flex flex-col items-center mt-auto md:mt-10">
+                    <h3 class="text-lg md:text-xl font-extrabold mb-6 uppercase tracking-wider">Escolha sua moldura</h3>
+                    
+                    <div class="flex flex-col gap-5 w-full px-4">
+                        <!-- Botão Andréia -->
+                        <button id="btn-andreia" class="btn-chapa active bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-4 px-6 rounded-full transition-all duration-300" onclick="selecionarTime('andreia')">
+                            Time Andréia de Jesus
+                        </button>
+                        
+                        <!-- Botão Marquinho -->
+                        <button id="btn-marquinho" class="btn-chapa bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-4 px-6 rounded-full transition-all duration-300" onclick="selecionarTime('marquinho')">
+                            Time Marquinho Lemes
+                        </button>
+                        
+                        <!-- Botão Andréia e Marquinho -->
+                        <button id="btn-ambos" class="btn-chapa bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-4 px-6 rounded-full transition-all duration-300" onclick="selecionarTime('ambos')">
+                            Time Andréia e Marquinho
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full md:w-7/12 bg-white p-6 md:p-12 overflow-y-auto flex flex-col items-center gap-16 hide-scroll z-0">
+            
+            <!-- EDITOR 1: Foto de Perfil -->
+            <div class="flex flex-col items-center w-full mt-4 md:mt-6">
+                <h3 class="text-xl md:text-2xl font-black text-brand-dark mb-6">Foto de Perfil</h3>
+                
+                <!-- Container do Editor (Círculo) -->
+                <div class="relative w-64 h-64 md:w-72 md:h-72 mb-4 rounded-full editor-container shadow-inner" id="container-perfil">
+                    <!-- Placeholder antes do upload -->
+                    <div id="placeholder-perfil" class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-brand-red1 transition-colors" onclick="document.getElementById('input-perfil').click()">
+                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span class="text-sm font-bold text-center px-4">clique para enviar a foto</span>
+                    </div>
+                    
+                    <!-- Elementos interativos (ocultos até o upload) -->
+                    <img id="user-img-perfil" class="user-photo hidden" alt="Sua Foto" draggable="false">
+                    <img id="frame-perfil" class="frame-overlay hidden" src="Andreia-1.jpg" alt="Moldura Perfil">
+                    
+                    <input type="file" id="input-perfil" class="hidden" accept="image/png, image/jpeg">
+                </div>
+
+                <!-- Controle de Zoom (Oculto inicialmente) -->
+                <div id="zoom-control-perfil" class="w-64 mb-6 hidden flex flex-col items-center">
+                    <label class="text-xs font-bold text-gray-500 mb-2 uppercase">Ajustar Zoom</label>
+                    <input type="range" id="slider-perfil" min="0.1" max="3" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-red1">
+                </div>
+                
+                <!-- Botão de Download -->
+                <button onclick="baixarImagem('perfil')" class="bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-3 px-10 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] transition-transform transform hover:-translate-y-1 active:scale-95">
+                    Baixar sua foto
+                </button>
+            </div>
+
+            <!-- Divisor -->
+            <div class="w-full max-w-sm h-px bg-gray-200"></div>
+
+            <!-- EDITOR 2: Post para o Feed -->
+            <div class="flex flex-col items-center w-full mb-10">
+                <h3 class="text-xl md:text-2xl font-black text-brand-dark mb-6">Post para o feed</h3>
+                
+                <!-- Container do Editor (Retângulo) -->
+                <div class="relative w-64 h-[320px] md:w-[280px] md:h-[350px] mb-4 rounded-md editor-container shadow-inner" id="container-feed">
+                    <!-- Placeholder antes do upload -->
+                    <div id="placeholder-feed" class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-brand-red1 transition-colors" onclick="document.getElementById('input-feed').click()">
+                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span class="text-sm font-bold text-center px-4">clique para enviar a foto</span>
+                    </div>
+                    
+                    <!-- Elementos interativos (ocultos até o upload) -->
+                    <img id="user-img-feed" class="user-photo hidden" alt="Sua Foto" draggable="false">
+                    <img id="frame-feed" class="frame-overlay hidden" src="Andreia.jpg" alt="Moldura Feed">
+                    
+                    <input type="file" id="input-feed" class="hidden" accept="image/png, image/jpeg">
+                </div>
+
+                <!-- Controle de Zoom -->
+                <div id="zoom-control-feed" class="w-64 mb-6 hidden flex flex-col items-center">
+                    <label class="text-xs font-bold text-gray-500 mb-2 uppercase">Ajustar Zoom</label>
+                    <input type="range" id="slider-feed" min="0.1" max="3" step="0.05" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand-red1">
+                </div>
+                
+                <!-- Botão de Download -->
+                <button onclick="baixarImagem('feed')" class="bg-brand-yellow hover:bg-yellow-400 text-brand-dark font-black text-lg py-3 px-10 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.2)] transition-transform transform hover:-translate-y-1 active:scale-95">
+                    Baixar sua foto
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Mapeamento das imagens de moldura (ATENÇÃO: Substitua os .jpg por .png com fundo transparente no servidor)
+        const molduras = {
+            andreia: {
+                perfil: 'Andreia-1.png',
+                feed: 'Andreia.png'
+            },
+            marquinho: {
+                perfil: 'Marquinho-1.png',
+                feed: 'Marquinho.png'
+            },
+            ambos: {
+                perfil: 'Marquinho e Andreia 1.png',
+                feed: 'Marquinho e Andreia 2.png'
+            }
+        };
+
+        let chapaAtual = 'andreia';
+
+        // Função para trocar a chapa selecionada
+        function selecionarTime(time) {
+            chapaAtual = time;
+            
+            // Atualiza botões
+            document.getElementById('btn-andreia').classList.remove('active');
+            document.getElementById('btn-marquinho').classList.remove('active');
+            document.getElementById('btn-ambos').classList.remove('active');
+            document.getElementById(`btn-${time}`).classList.add('active');
+
+            // Atualiza as imagens das molduras nos previews
+            document.getElementById('frame-perfil').src = molduras[time].perfil;
+            document.getElementById('frame-feed').src = molduras[time].feed;
+        }
+
+        // --- SISTEMA DE EDITOR DE IMAGEM (Arrastar e Zoom) ---
+        // Cria um estado para cada editor (perfil e feed)
+        const editors = {
+            perfil: { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 },
+            feed: { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 }
+        };
+
+        function setupEditor(type) {
+            const input = document.getElementById(`input-${type}`);
+            const userImg = document.getElementById(`user-img-${type}`);
+            const frameImg = document.getElementById(`frame-${type}`);
+            const placeholder = document.getElementById(`placeholder-${type}`);
+            const container = document.getElementById(`container-${type}`);
+            const zoomControl = document.getElementById(`zoom-control-${type}`);
+            const slider = document.getElementById(`slider-${type}`);
+            const state = editors[type];
+
+            // 1. Upload de Imagem
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    userImg.src = event.target.result;
+                    userImg.onload = () => {
+                        // Reseta estados
+                        state.scale = 1;
+                        state.panX = 0;
+                        state.panY = 0;
+                        slider.value = 1;
+                        
+                        // Centraliza a imagem baseada no tamanho natural vs container
+                        const imgRatio = userImg.naturalWidth / userImg.naturalHeight;
+                        const containerRatio = container.offsetWidth / container.offsetHeight;
+                        
+                        if(imgRatio > containerRatio) {
+                            userImg.style.height = '100%';
+                            userImg.style.width = 'auto';
+                        } else {
+                            userImg.style.width = '100%';
+                            userImg.style.height = 'auto';
+                        }
+
+                        updateTransform(type);
+                        
+                        // Atualiza UI
+                        userImg.classList.remove('hidden');
+                        frameImg.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                        container.classList.add('has-image');
+                        zoomControl.classList.remove('hidden');
+                    };
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // 2. Controle de Zoom (Slider)
+            slider.addEventListener('input', function(e) {
+                state.scale = parseFloat(e.target.value);
+                updateTransform(type);
+            });
+
+            // 3. Sistema de Arrastar (Pan) - Mouse
+            container.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', drag);
+            window.addEventListener('mouseup', endDrag);
+
+            // 3. Sistema de Arrastar (Pan) - Touch (Mobile)
+            container.addEventListener('touchstart', (e) => {
+                if(e.touches.length === 1) {
+                    startDrag(e.touches[0]);
+                }
+            }, {passive: false});
+            window.addEventListener('touchmove', (e) => {
+                if(state.isDragging && e.touches.length === 1) {
+                    e.preventDefault(); // Evita scroll da tela
+                    drag(e.touches[0]);
+                }
+            }, {passive: false});
+            window.addEventListener('touchend', endDrag);
+
+            function startDrag(e) {
+                if (userImg.classList.contains('hidden')) return;
+                state.isDragging = true;
+                state.startX = e.clientX - state.panX;
+                state.startY = e.clientY - state.panY;
+            }
+
+            function drag(e) {
+                if (!state.isDragging) return;
+                state.panX = e.clientX - state.startX;
+                state.panY = e.clientY - state.startY;
+                updateTransform(type);
+            }
+
+            function endDrag() {
+                state.isDragging = false;
+            }
+        }
+
+        // Aplica o transform CSS visualmente na imagem do usuário
+        function updateTransform(type) {
+            const userImg = document.getElementById(`user-img-${type}`);
+            const state = editors[type];
+            userImg.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+        }
+
+        // Inicializa os dois editores
+        setupEditor('perfil');
+        setupEditor('feed');
+
+        function baixarImagem(type) {
+            const userImg = document.getElementById(`user-img-${type}`);
+            
+            if (userImg.classList.contains('hidden') || !userImg.src) {
+                alert('Por favor, envie uma foto primeiro!');
+                return;
+            }
+
+            const state = editors[type];
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const frameUrl = molduras[chapaAtual][type];
+
+            // Define dimensões de alta qualidade para exportação
+            // Perfil: 1080x1080 | Feed: 1080x1350
+            canvas.width = 1080;
+            canvas.height = type === 'perfil' ? 1080 : 1350;
+
+            const frameImg = new Image();
+            frameImg.crossOrigin = "anonymous";
+            frameImg.src = frameUrl;
+
+            frameImg.onload = () => {
+                // Cálculo de proporção para reproduzir o que está na tela (CSS) para o Canvas real
+                const container = document.getElementById(`container-${type}`);
+                
+                // 1. Preenche o fundo de branco (caso a imagem do usuário não cubra tudo)
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 2. Fator de escala do container da tela para o canvas final
+                const renderScale = canvas.width / container.offsetWidth;
+
+                // 3. Desenha a foto do usuário
+                ctx.save();
+                
+                // Move para o centro do canvas para calcular o scale e pan a partir do centro
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                
+                // Aplica o pan (movimento) multiplicado pela escala de renderização
+                ctx.translate(state.panX * renderScale, state.panY * renderScale);
+                
+                // Aplica o zoom do usuário
+                ctx.scale(state.scale, state.scale);
+
+                // Determina o tamanho da imagem baseada em como o CSS Object-fit ou width/height a renderizou
+                let drawWidth, drawHeight;
+                const imgRatio = userImg.naturalWidth / userImg.naturalHeight;
+                const containerRatio = container.offsetWidth / container.offsetHeight;
+
+                if(imgRatio > containerRatio) {
+                    drawHeight = canvas.height;
+                    drawWidth = drawHeight * imgRatio;
+                } else {
+                    drawWidth = canvas.width;
+                    drawHeight = drawWidth / imgRatio;
+                }
+
+                // Desenha a imagem centralizada
+                ctx.drawImage(userImg, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                ctx.restore();
+
+                // 4. Desenha a moldura (PNG) por cima cobrindo tudo
+                ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+
+                // 5. Inicia o Download
+                try {
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    const link = document.createElement('a');
+                    link.download = `minha-foto-${chapaAtual}-${type}.jpg`;
+                    link.href = dataUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (e) {
+                    console.error("Erro ao gerar imagem. Isso geralmente ocorre se as imagens da moldura tiverem problemas de CORS localmente.", e);
+                    alert("A imagem foi gerada, mas o navegador bloqueou o download automático (CORS). Hospede o site para funcionar 100%.");
+                }
+            };
+        }
+    </script>
+</body>
+</html>
